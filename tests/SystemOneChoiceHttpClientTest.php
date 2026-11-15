@@ -39,6 +39,39 @@ final class SystemOneChoiceHttpClientTest extends TestCase
         }
     }
 
+    public function testInvalidRuntimeCandidateSetsAndBearerControlBytesFailClosed(): void
+    {
+        $client = new SystemOneChoiceHttpClient('http://127.0.0.1:8282/v1/systemone', 1000, true);
+
+        foreach ([
+            [],
+            ['none' => 'Reserved option'],
+            ['invalid role' => 'Unexpected whitespace in candidate ID'],
+            ['reviewer' => ''],
+            [42 => 'Numeric IDs must not become strings'],
+        ] as $criteria) {
+            try {
+                $client->decide('Public state', $criteria, null);
+                self::fail('Invalid runtime candidate set was accepted.');
+            } catch (InvalidArgumentException) {
+                self::assertTrue(true);
+            }
+        }
+
+        foreach (["bad\x00token", "bad\rheader", "bad\nheader", "bad\x7Ftoken"] as $token) {
+            try {
+                new SystemOneChoiceHttpClient(
+                    'https://trusted.example/v1/systemone',
+                    1000,
+                    bearerToken: $token,
+                );
+                self::fail('Bearer token with a control character was accepted.');
+            } catch (InvalidArgumentException) {
+                self::assertTrue(true);
+            }
+        }
+    }
+
     public function testExplicitNumericLoopbackIsOnlyForLocalFixtures(): void
     {
         $client = new SystemOneChoiceHttpClient('http://127.0.0.1:8282/v1/systemone', 1000, true);
