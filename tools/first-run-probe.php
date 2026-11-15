@@ -106,7 +106,7 @@ try {
     $startedAt = hrtime(true);
     $advice = (new BoundedDecisionAdvisor($provider))->advise($request, $mode);
     $latencyMs = round((hrtime(true) - $startedAt) / 1_000_000, 3);
-    $providerReplied = in_array(
+    $providerReplied = $advice->providerError === null && in_array(
         $advice->providerDisposition,
         [DecisionDisposition::Suggest, DecisionDisposition::Abstain],
         true,
