@@ -53,4 +53,4 @@ composer ci
 
 GitHub Actions additionally tests the real HTTP adapter against a deterministic local server for success, abstention, malformed responses, oversized responses, HTTP failures, and timeout, across PHP 8.3–8.5. No paid provider key is required.
 
-See [architecture](docs/architecture.md) and [experiment protocol](docs/experiments.md). No real-provider quality or economic advantage is claimed.
+See [architecture](docs/architecture.md), [experiment protocol](docs/experiments.md), and the [evidence ledger](docs/evidence-ledger.md) separating observed CI/host behavior from unproven engineering improvements. No real-provider quality or economic advantage is claimed.
