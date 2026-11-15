@@ -2,6 +2,21 @@
 
 declare(strict_types=1);
 
+/**
+ * @param array<string, mixed> $probe
+ * @return array<string, mixed>
+ */
+function advice(array $probe): array
+{
+    $value = $probe['decision_advice'] ?? null;
+    if (!is_array($value) || array_is_list($value)) {
+        throw new RuntimeException('Probe receipt is missing its structured decision advice.');
+    }
+    /** @var array<string, mixed> $value */
+
+    return $value;
+}
+
 /** @return array<string, mixed> */
 function receipt(string $path): array
 {
@@ -10,14 +25,16 @@ function receipt(string $path): array
         throw new RuntimeException('Probe receipt is absent or contains provider credentials / raw task data.');
     }
     $decoded = json_decode($raw, true, 32, JSON_THROW_ON_ERROR);
-    if (!is_array($decoded)) {
+    if (!is_array($decoded) || array_is_list($decoded)) {
         throw new RuntimeException('Probe receipt must be a JSON object.');
     }
+    /** @var array<string, mixed> $decoded */
+    $decisionAdvice = advice($decoded);
     if (
         ($decoded['kind'] ?? null) !== 'decision_connectivity_probe'
         || ($decoded['engineering_outcome_observed'] ?? null) !== false
-        || ($decoded['decision_advice']['authority'] ?? null) !== 'advisory_only'
-        || ($decoded['decision_advice']['lifecycle_mutation'] ?? null) !== false
+        || ($decisionAdvice['authority'] ?? null) !== 'advisory_only'
+        || ($decisionAdvice['lifecycle_mutation'] ?? null) !== false
     ) {
         throw new RuntimeException('Probe receipt lost its advisory and outcome boundaries.');
     }
@@ -32,16 +49,19 @@ if (count($argv) !== 4) {
 $rules = receipt($argv[1]);
 $shadow = receipt($argv[2]);
 $assist = receipt($argv[3]);
+$rulesAdvice = advice($rules);
+$shadowAdvice = advice($shadow);
+$assistAdvice = advice($assist);
 if (
     ($rules['preflight_status'] ?? null) !== 'offline_only'
-    || ($rules['decision_advice']['suggested_choice'] ?? null) !== 'reviewer'
-    || ($rules['decision_advice']['provider_disposition'] ?? null) !== 'not_enabled'
+    || ($rulesAdvice['suggested_choice'] ?? null) !== 'reviewer'
+    || ($rulesAdvice['provider_disposition'] ?? null) !== 'not_enabled'
     || ($shadow['preflight_status'] ?? null) !== 'provider_replied'
-    || ($shadow['decision_advice']['suggested_choice'] ?? null) !== 'reviewer'
-    || ($shadow['decision_advice']['provider_observed_choice'] ?? null) !== 'investigator'
+    || ($shadowAdvice['suggested_choice'] ?? null) !== 'reviewer'
+    || ($shadowAdvice['provider_observed_choice'] ?? null) !== 'investigator'
     || ($assist['preflight_status'] ?? null) !== 'provider_replied'
-    || ($assist['decision_advice']['suggested_choice'] ?? null) !== 'investigator'
-    || ($assist['decision_advice']['provider_probability'] ?? null) !== 0.8
+    || ($assistAdvice['suggested_choice'] ?? null) !== 'investigator'
+    || ($assistAdvice['provider_probability'] ?? null) !== 0.8
     || ($rules['fixture_sha256'] ?? null) !== ($assist['fixture_sha256'] ?? null)
     || ($shadow['fixture_sha256'] ?? null) !== ($assist['fixture_sha256'] ?? null)
 ) {
