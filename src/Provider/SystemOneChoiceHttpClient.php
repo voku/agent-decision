@@ -106,6 +106,10 @@ final readonly class SystemOneChoiceHttpClient implements DecisionModel
                 'max_redirects' => 0,
             ],
         ]);
+        // Measure the entire network operation, not individual socket waits.
+        // A peer sending periodic bytes must not keep a workflow open forever.
+        $startedAtNs = hrtime(true);
+        $deadlineNs = $startedAtNs + ($this->timeoutMs * 1_000_000);
         $http_response_header = [];
         $stream = @fopen($this->endpoint, 'rb', false, $context);
         if ($stream === false) {
@@ -113,14 +117,42 @@ final readonly class SystemOneChoiceHttpClient implements DecisionModel
         }
 
         try {
-            // Enforce the body limit DURING retrieval, not after downloading
-            // an arbitrarily large provider response into process memory.
-            $body = @stream_get_contents($stream, 32769);
+            $body = '';
+            while (true) {
+                $remainingNs = $deadlineNs - hrtime(true);
+                if ($remainingNs <= 0) {
+                    throw new RuntimeException('decision model provider timed out.');
+                }
+
+                // Socket read timeout is reset after each chunk, so always
+                // shrink it to the remaining TOTAL response deadline.
+                $remainingUs = max(1, (int) ceil($remainingNs / 1000));
+                if (!stream_set_timeout($stream, intdiv($remainingUs, 1_000_000), $remainingUs % 1_000_000)) {
+                    throw new RuntimeException('decision model provider transport timeout configuration failed.');
+                }
+
+                // Read at most one byte beyond the 32 KiB response cap.
+                $chunk = @fread($stream, min(8192, 32769 - strlen($body)));
+                if (!is_string($chunk)) {
+                    throw new RuntimeException('decision model provider transport unavailable.');
+                }
+                $body .= $chunk;
+
+                if (strlen($body) > 32768) {
+                    throw new UnexpectedValueException('decision model provider response exceeded size limit.');
+                }
+                if (hrtime(true) >= $deadlineNs || (($chunk === '') && (stream_get_meta_data($stream)['timed_out'] ?? false))) {
+                    throw new RuntimeException('decision model provider timed out.');
+                }
+                if (feof($stream)) {
+                    break;
+                }
+                if ($chunk === '') {
+                    throw new RuntimeException('decision model provider returned an interrupted response.');
+                }
+            }
         } finally {
             fclose($stream);
-        }
-        if (!is_string($body)) {
-            throw new RuntimeException('decision model provider transport unavailable.');
         }
         $statusLine = $http_response_header[0] ?? '';
         if (preg_match('/^HTTP\/\S+\s+([0-9]{3})/', $statusLine, $matches) !== 1) {
