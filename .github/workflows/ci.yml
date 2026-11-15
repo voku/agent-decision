@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  php:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4', '8.5']
+    env:
+      EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Assert exact head
+        run: test "$(git rev-parse HEAD)" = "$EXACT_HEAD"
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+      - name: Install
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Validate Composer metadata
+        run: composer validate --strict
+      - name: Unit, PHPStan and style
+        run: composer ci
+      - name: Real HTTP adapter against localhost only
+        shell: bash
+        run: |
+          set -euo pipefail
+          port="$(php -r '$s = stream_socket_server("tcp://127.0.0.1:0", $error, $message); if (!$s) {exit(1);} echo (int) substr(strrchr(stream_socket_get_name($s, false), ":"), 1); fclose($s);')"
+          export AGENT_DECISION_TEST_ENDPOINT="http://127.0.0.1:$port/v1/systemone"
+          mkdir -p build
+          php -S "127.0.0.1:$port" tests/fixtures/systemone-server.php > /dev/null 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if php -r '$s = @fsockopen("127.0.0.1", (int) $argv[1], $e, $m, 0.1); if ($s) { fclose($s); exit(0); } exit(1);' "$port"; then
+              break
+            fi
+            sleep 0.1
+          done
+          php tools/verify-systemone-wire.php
+          test "$(git rev-parse HEAD)" = "$EXACT_HEAD"
