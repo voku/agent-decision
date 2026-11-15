@@ -6,7 +6,6 @@ namespace voku\AgentDecision\Provider;
 
 use voku\AgentDecision\DecisionModel;
 use voku\AgentDecision\DecisionChoiceResult;
-
 use InvalidArgumentException;
 use RuntimeException;
 use UnexpectedValueException;
