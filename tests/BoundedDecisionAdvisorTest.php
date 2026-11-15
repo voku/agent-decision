@@ -19,6 +19,23 @@ use voku\AgentDecision\DecisionRequest;
  */
 final class BoundedDecisionAdvisorTest extends TestCase
 {
+    public function testOversizedCandidateDescriptionIsRejectedBeforeProviderInvocation(): void
+    {
+        $model = new FixedDecisionModel('reviewer', 0.8);
+
+        try {
+            $request = new DecisionRequest(
+                criteria: ['reviewer' => str_repeat('x', 513)],
+                publicState: '{"task_type":"public_issue"}',
+                classification: DataClassification::Public,
+            );
+            (new BoundedDecisionAdvisor($model))->advise($request, DecisionMode::Assist);
+            self::fail('Oversized candidate description was accepted.');
+        } catch (InvalidArgumentException) {
+            self::assertSame(0, $model->calls);
+        }
+    }
+
     public function testOfflineAndRulesNeverInvokeModel(): void
     {
         $model = new FixedDecisionModel('reviewer', 0.8);
