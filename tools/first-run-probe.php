@@ -16,6 +16,9 @@ require dirname(__DIR__) . '/vendor/autoload.php';
  * Run only with reviewed, explicitly public fixtures in experiments/public-fixtures.
  */
 try {
+    if (!isset($argv)) {
+        throw new InvalidArgumentException('This probe requires PHP CLI arguments.');
+    }
     $modeName = 'rules';
     $fixtureName = 'experiments/public-fixtures/specialist-routing.json';
     $publicApproved = false;
