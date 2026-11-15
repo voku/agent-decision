@@ -26,7 +26,6 @@ final readonly class DecisionAdvice
      * @return array{
      *     schema_version: '1.0',
      *     authority: 'advisory_only',
-     *     human_decision_required: true,
      *     lifecycle_mutation: false,
      *     mode: string,
      *     disposition: string,
@@ -43,7 +42,6 @@ final readonly class DecisionAdvice
         return [
             'schema_version' => '1.0',
             'authority' => 'advisory_only',
-            'human_decision_required' => true,
             'lifecycle_mutation' => false,
             'mode' => $this->mode->value,
             'disposition' => $this->disposition->value,
