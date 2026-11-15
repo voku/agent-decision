@@ -42,6 +42,10 @@ function receipt(string $path): array
     return $decoded;
 }
 
+if (!isset($argv)) {
+    throw new InvalidArgumentException('This verifier requires PHP CLI arguments.');
+}
+
 if (count($argv) !== 4) {
     throw new InvalidArgumentException('Expected rules, shadow and assist receipt files.');
 }
