@@ -37,6 +37,7 @@ final readonly class DecisionRequest
                 || preg_match('/\A[a-z][a-z0-9._-]{0,79}\z/', $id) !== 1
                 || !is_string($description)
                 || trim($description) === ''
+                || strlen($description) > 512
             ) {
                 throw new InvalidArgumentException('Every canonical option requires a valid identifier and description.');
             }
