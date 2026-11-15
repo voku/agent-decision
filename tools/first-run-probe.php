@@ -74,12 +74,23 @@ try {
         throw new InvalidArgumentException('Fixture schema or public classification is invalid.');
     }
 
+    $protectedChoices = $fixture['choices_requiring_evidence'];
+    if (!array_is_list($protectedChoices)) {
+        throw new InvalidArgumentException('Evidence-protected choices must be a list.');
+    }
+    foreach ($protectedChoices as $choice) {
+        if (!is_string($choice) || $choice === '') {
+            throw new InvalidArgumentException('Evidence-protected choices must be non-empty strings.');
+        }
+    }
+    /** @var list<non-empty-string> $protectedChoices */
+
     $request = new DecisionRequest(
         criteria: $fixture['criteria'],
         publicState: $fixture['public_state'],
         classification: DataClassification::Public,
         baselineChoice: $fixture['baseline_choice'],
-        choicesRequiringEvidence: $fixture['choices_requiring_evidence'],
+        choicesRequiringEvidence: $protectedChoices,
         model: (($model = getenv('AGENT_DECISION_PROVIDER_MODEL')) !== false && $model !== '') ? $model : null,
     );
 
