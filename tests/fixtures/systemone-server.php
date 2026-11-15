@@ -40,6 +40,15 @@ if (str_starts_with($state, 'TIMEOUT')) {
     usleep(1_500_000);
 }
 header('Content-Type: application/json');
+if (str_starts_with($state, 'SLOW_TRICKLE')) {
+    header('Cache-Control: no-cache');
+    for ($i = 0; $i < 15; ++$i) {
+        echo 'x';
+        flush();
+        usleep(100_000);
+    }
+    exit;
+}
 if (str_starts_with($state, 'OVERSIZED')) {
     echo str_repeat('X', 65536);
     exit;
