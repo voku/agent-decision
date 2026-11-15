@@ -38,6 +38,8 @@ jobs:
         run: composer validate --strict
       - name: Unit, PHPStan and style
         run: composer ci
+      - name: Analyze first-run CLI tools with PHPStan max
+        run: vendor/bin/phpstan analyse --level=max --memory-limit=512M --no-progress tools/first-run-probe.php tools/verify-first-run-probe.php
       - name: Real HTTP adapter against localhost only
         shell: bash
         run: |
