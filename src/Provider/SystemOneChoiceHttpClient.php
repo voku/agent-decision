@@ -132,7 +132,11 @@ final readonly class SystemOneChoiceHttpClient implements DecisionModel
                 }
 
                 // Read at most one byte beyond the 32 KiB response cap.
-                $chunk = @fread($stream, min(8192, 32769 - strlen($body)));
+                $remainingBytes = 32769 - strlen($body);
+                if ($remainingBytes <= 0) {
+                    throw new UnexpectedValueException('decision model provider response exceeded size limit.');
+                }
+                $chunk = @fread($stream, min(8192, $remainingBytes));
                 if (!is_string($chunk)) {
                     throw new RuntimeException('decision model provider transport unavailable.');
                 }
@@ -141,7 +145,7 @@ final readonly class SystemOneChoiceHttpClient implements DecisionModel
                 if (strlen($body) > 32768) {
                     throw new UnexpectedValueException('decision model provider response exceeded size limit.');
                 }
-                if (hrtime(true) >= $deadlineNs || (($chunk === '') && (stream_get_meta_data($stream)['timed_out'] ?? false))) {
+                if (hrtime(true) >= $deadlineNs || (($chunk === '') && stream_get_meta_data($stream)['timed_out'])) {
                     throw new RuntimeException('decision model provider timed out.');
                 }
                 if (feof($stream)) {
@@ -162,10 +166,6 @@ final readonly class SystemOneChoiceHttpClient implements DecisionModel
         if ($status !== 200) {
             throw new RuntimeException('decision model provider returned a non-success HTTP status.');
         }
-        if (strlen($body) > 32768) {
-            throw new UnexpectedValueException('decision model provider response exceeded size limit.');
-        }
-
         try {
             $responseDocument = json_decode($body, true, 32, JSON_THROW_ON_ERROR);
         } catch (\JsonException $exception) {
