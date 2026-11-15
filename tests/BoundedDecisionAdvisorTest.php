@@ -43,7 +43,7 @@ final class BoundedDecisionAdvisorTest extends TestCase
         self::assertSame(0.83, $advice->providerProbability);
         self::assertSame(1, $model->calls);
         self::assertFalse($advice->toArray()['lifecycle_mutation']);
-        self::assertTrue($advice->toArray()['human_decision_required']);
+        self::assertArrayNotHasKey('human_decision_required', $advice->toArray());
     }
 
     public function testAssistAcceptsOnlyCanonicalUnprotectedSuggestion(): void
