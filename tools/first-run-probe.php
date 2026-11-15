@@ -133,7 +133,7 @@ try {
         'recorded_at_utc' => gmdate('Y-m-d\TH:i:s\Z'),
         'experiment_id' => $fixture['id'],
         'fixture_sha256' => 'sha256:' . hash('sha256', $raw),
-        'classification' => 'operator_approved_public',
+        'classification' => $publicApproved ? 'operator_approved_public' : 'public_fixture',
         'preflight_status' => $status,
         'latency_ms' => $latencyMs,
         'decision_advice' => $advice->toArray(),

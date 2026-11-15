@@ -58,12 +58,15 @@ $shadowAdvice = advice($shadow);
 $assistAdvice = advice($assist);
 if (
     ($rules['preflight_status'] ?? null) !== 'offline_only'
+    || ($rules['classification'] ?? null) !== 'public_fixture'
     || ($rulesAdvice['suggested_choice'] ?? null) !== 'reviewer'
     || ($rulesAdvice['provider_disposition'] ?? null) !== 'not_enabled'
     || ($shadow['preflight_status'] ?? null) !== 'provider_replied'
+    || ($shadow['classification'] ?? null) !== 'operator_approved_public'
     || ($shadowAdvice['suggested_choice'] ?? null) !== 'reviewer'
     || ($shadowAdvice['provider_observed_choice'] ?? null) !== 'investigator'
     || ($assist['preflight_status'] ?? null) !== 'provider_replied'
+    || ($assist['classification'] ?? null) !== 'operator_approved_public'
     || ($assistAdvice['suggested_choice'] ?? null) !== 'investigator'
     || ($assistAdvice['provider_probability'] ?? null) !== 0.8
     || ($rules['fixture_sha256'] ?? null) !== ($assist['fixture_sha256'] ?? null)
