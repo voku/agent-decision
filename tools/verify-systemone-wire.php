@@ -52,4 +52,19 @@ try {
         throw $exception;
     }
 }
-echo "PASS: bounded loopback request, authentication, abstention, malformed response, size limit, HTTP errors and timeout\n";
+// The local server is single-threaded; let the previous timeout fixture end.
+usleep(1_600_000);
+$slow = new SystemOneChoiceHttpClient($endpoint, 350, true, 'local-test-token-only');
+$startedAt = microtime(true);
+try {
+    $slow->decide('SLOW_TRICKLE 100ms per byte', $criteria, null);
+    throw new RuntimeException('Slow-drip response incorrectly accepted.');
+} catch (RuntimeException $exception) {
+    if ($exception->getMessage() !== 'decision model provider timed out.') {
+        throw new RuntimeException('Slow-drip provider did not enforce an overall deadline.', 0, $exception);
+    }
+}
+if (microtime(true) - $startedAt > 1.2) {
+    throw new RuntimeException('Slow-drip provider exceeded the bounded response deadline.');
+}
+echo "PASS: bounded loopback request, authentication, abstention, malformed response, size limit, HTTP errors, timeout and slow-drip deadline\n";
