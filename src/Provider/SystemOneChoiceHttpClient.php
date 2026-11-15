@@ -117,21 +117,37 @@ final readonly class SystemOneChoiceHttpClient implements DecisionModel
         }
 
         try {
+            if (!stream_set_blocking($stream, false)) {
+                throw new RuntimeException('decision model provider cannot enable bounded nonblocking reads.');
+            }
             $body = '';
-            while (true) {
+            while (!feof($stream)) {
                 $remainingNs = $deadlineNs - hrtime(true);
                 if ($remainingNs <= 0) {
                     throw new RuntimeException('decision model provider timed out.');
                 }
 
-                // Socket read timeout is reset after each chunk, so always
-                // shrink it to the remaining TOTAL response deadline.
+                // stream_select waits only until the TOTAL deadline, even
+                // when an HTTP peer trickles bytes frequently enough to keep
+                // resetting conventional per-read socket timeouts.
                 $remainingUs = max(1, (int) ceil($remainingNs / 1000));
-                if (!stream_set_timeout($stream, intdiv($remainingUs, 1_000_000), $remainingUs % 1_000_000)) {
-                    throw new RuntimeException('decision model provider transport timeout configuration failed.');
+                $read = [$stream];
+                $write = [];
+                $except = [];
+                $ready = @stream_select(
+                    $read,
+                    $write,
+                    $except,
+                    intdiv($remainingUs, 1_000_000),
+                    $remainingUs % 1_000_000,
+                );
+                if ($ready === false) {
+                    throw new RuntimeException('decision model provider transport readiness failed.');
+                }
+                if ($ready === 0) {
+                    throw new RuntimeException('decision model provider timed out.');
                 }
 
-                // Read at most one byte beyond the 32 KiB response cap.
                 $remainingBytes = 32769 - strlen($body);
                 if ($remainingBytes <= 0) {
                     throw new UnexpectedValueException('decision model provider response exceeded size limit.');
@@ -145,15 +161,11 @@ final readonly class SystemOneChoiceHttpClient implements DecisionModel
                 if (strlen($body) > 32768) {
                     throw new UnexpectedValueException('decision model provider response exceeded size limit.');
                 }
-                if (hrtime(true) >= $deadlineNs || (($chunk === '') && stream_get_meta_data($stream)['timed_out'])) {
+                if (hrtime(true) >= $deadlineNs) {
                     throw new RuntimeException('decision model provider timed out.');
                 }
-                if (feof($stream)) {
-                    break;
-                }
-                if ($chunk === '') {
-                    throw new RuntimeException('decision model provider returned an interrupted response.');
-                }
+                // A nonblocking read can legitimately yield no data. Retry
+                // through stream_select instead of spinning or misclassifying it.
             }
         } finally {
             fclose($stream);
