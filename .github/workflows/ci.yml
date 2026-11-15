@@ -55,4 +55,21 @@ jobs:
             sleep 0.1
           done
           php tools/verify-systemone-wire.php
+          php tools/first-run-probe.php --mode=rules > build/probe-rules.json
+          export AGENT_DECISION_PROVIDER_ENDPOINT="$AGENT_DECISION_TEST_ENDPOINT"
+          export AGENT_DECISION_PROVIDER_TOKEN="local-test-token-only"
+          php tools/first-run-probe.php --mode=shadow --public-approved --allow-loopback > build/probe-shadow.json
+          php tools/first-run-probe.php --mode=assist --public-approved --allow-loopback > build/probe-assist.json
+          php tools/verify-first-run-probe.php build/probe-rules.json build/probe-shadow.json build/probe-assist.json
+          if php tools/first-run-probe.php --mode=assist --allow-loopback > /dev/null 2>&1; then
+            echo "Remote probe ran without operator approval"
+            exit 1
+          fi
+          set +e
+          AGENT_DECISION_PROVIDER_TOKEN="probe-failure-test-token" php tools/first-run-probe.php --mode=assist --public-approved --allow-loopback > build/probe-auth-failure.json
+          auth_result=$?
+          set -e
+          test "$auth_result" -eq 2
+          grep -q '"preflight_status":"provider_failed"' build/probe-auth-failure.json
+          ! grep -q 'probe-failure-test-token' build/probe-auth-failure.json
           test "$(git rev-parse HEAD)" = "$EXACT_HEAD"
