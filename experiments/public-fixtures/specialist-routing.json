@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "id": "public-specialist-routing-001",
+  "classification": "public",
+  "public_state": "ROUTE public issue: determine which specialist should inspect an unfamiliar public PHP package before a patch",
+  "criteria": {
+    "investigator": "Locate the code path and collect current evidence before proposing a change.",
+    "reviewer": "Review an existing proposed change for correctness and security."
+  },
+  "baseline_choice": "reviewer",
+  "choices_requiring_evidence": []
+}

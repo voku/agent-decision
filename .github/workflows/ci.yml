@@ -38,6 +38,8 @@ jobs:
         run: composer validate --strict
       - name: Unit, PHPStan and style
         run: composer ci
+      - name: Analyze first-run CLI tools with PHPStan max
+        run: vendor/bin/phpstan analyse --level=max --memory-limit=512M --no-progress tools/first-run-probe.php tools/verify-first-run-probe.php
       - name: Real HTTP adapter against localhost only
         shell: bash
         run: |
@@ -55,4 +57,46 @@ jobs:
             sleep 0.1
           done
           php tools/verify-systemone-wire.php
+          php tools/first-run-probe.php --mode=rules > build/probe-rules.json
+          export AGENT_DECISION_PROVIDER_ENDPOINT="$AGENT_DECISION_TEST_ENDPOINT"
+          export AGENT_DECISION_PROVIDER_TOKEN="local-test-token-only"
+          php tools/first-run-probe.php --mode=shadow --public-approved --allow-loopback > build/probe-shadow.json
+          php tools/first-run-probe.php --mode=assist --public-approved --allow-loopback > build/probe-assist.json
+          php tools/verify-first-run-probe.php build/probe-rules.json build/probe-shadow.json build/probe-assist.json
+          # All three corrupted hashes must fail, even when they are identical.
+          for mutation in missing invalid wrong_type; do
+            php -r '
+              foreach (["rules", "shadow", "assist"] as $mode) {
+                  $receipt = json_decode((string) file_get_contents("build/probe-$mode.json"), true, 32, JSON_THROW_ON_ERROR);
+                  if ($argv[1] === "missing") {
+                      unset($receipt["fixture_sha256"]);
+                  } else {
+                      $receipt["fixture_sha256"] = $argv[1] === "invalid" ? "not-a-sha256" : 123;
+                  }
+                  file_put_contents("build/probe-$mode-corrupt.json", json_encode($receipt, JSON_THROW_ON_ERROR));
+              }
+            ' "$mutation"
+            if php tools/verify-first-run-probe.php build/probe-rules-corrupt.json build/probe-shadow-corrupt.json build/probe-assist-corrupt.json > /dev/null 2>&1; then
+              echo "Verifier accepted $mutation fixture hash"
+              exit 1
+            fi
+          done
+          if php tools/first-run-probe.php --mode=assist --allow-loopback > /dev/null 2>&1; then
+            echo "Remote probe ran without operator approval"
+            exit 1
+          fi
+          set +e
+          AGENT_DECISION_PROVIDER_TOKEN="probe-failure-test-token" php tools/first-run-probe.php --mode=assist --public-approved --allow-loopback > build/probe-auth-failure.json
+          auth_result=$?
+          set -e
+          test "$auth_result" -eq 2
+          grep -q '"preflight_status":"provider_failed"' build/probe-auth-failure.json
+          ! grep -q 'probe-failure-test-token' build/probe-auth-failure.json
+          set +e
+          php tools/first-run-probe.php --fixture=experiments/public-fixtures/protected-routing.json --mode=assist --public-approved --allow-loopback > build/probe-protected.json
+          protected_result=$?
+          set -e
+          test "$protected_result" -eq 2
+          grep -q '"preflight_status":"provider_failed"' build/probe-protected.json
+          grep -q '"provider_error":"insufficient_decision_evidence"' build/probe-protected.json
           test "$(git rev-parse HEAD)" = "$EXACT_HEAD"

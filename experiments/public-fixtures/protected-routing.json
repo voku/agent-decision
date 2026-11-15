@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "id": "public-protected-routing-002",
+  "classification": "public",
+  "public_state": "ROUTE public issue: structural metadata cannot justify positive evidence-protected actions",
+  "criteria": {
+    "investigator": "Locate the public owner and provide supporting evidence.",
+    "reviewer": "Review the current public evidence."
+  },
+  "baseline_choice": "reviewer",
+  "choices_requiring_evidence": ["investigator"]
+}
