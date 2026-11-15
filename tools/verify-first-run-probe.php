@@ -17,6 +17,19 @@ function advice(array $probe): array
     return $value;
 }
 
+/**
+ * @param array<string, mixed> $probe
+ */
+function fixtureHash(array $probe): string
+{
+    $hash = $probe['fixture_sha256'] ?? null;
+    if (!is_string($hash) || preg_match('/\\Asha256:[0-9a-f]{64}\\z/', $hash) !== 1) {
+        throw new RuntimeException('Probe receipt is missing a valid SHA-256 fixture hash.');
+    }
+
+    return $hash;
+}
+
 /** @return array<string, mixed> */
 function receipt(string $path): array
 {
@@ -56,6 +69,9 @@ $assist = receipt($argv[3]);
 $rulesAdvice = advice($rules);
 $shadowAdvice = advice($shadow);
 $assistAdvice = advice($assist);
+$rulesHash = fixtureHash($rules);
+$shadowHash = fixtureHash($shadow);
+$assistHash = fixtureHash($assist);
 if (
     ($rules['preflight_status'] ?? null) !== 'offline_only'
     || ($rules['classification'] ?? null) !== 'public_fixture'
@@ -69,8 +85,8 @@ if (
     || ($assist['classification'] ?? null) !== 'operator_approved_public'
     || ($assistAdvice['suggested_choice'] ?? null) !== 'investigator'
     || ($assistAdvice['provider_probability'] ?? null) !== 0.8
-    || ($rules['fixture_sha256'] ?? null) !== ($assist['fixture_sha256'] ?? null)
-    || ($shadow['fixture_sha256'] ?? null) !== ($assist['fixture_sha256'] ?? null)
+    || $rulesHash !== $assistHash
+    || $shadowHash !== $assistHash
 ) {
     throw new RuntimeException('First-run probe failed rules/shadow/assist isolation or selected a stale fixture.');
 }
