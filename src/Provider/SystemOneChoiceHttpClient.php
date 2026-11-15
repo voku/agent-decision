@@ -76,6 +76,7 @@ final readonly class SystemOneChoiceHttpClient implements DecisionModel
                 || preg_match('/\A[a-z][a-z0-9._-]{0,79}\z/', $id) !== 1
                 || !is_string($description)
                 || trim($description) === ''
+                || strlen($description) > 512
             ) {
                 throw new InvalidArgumentException('Invalid canonical decision candidate.');
             }
