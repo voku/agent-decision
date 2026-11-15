@@ -10,6 +10,14 @@ use voku\AgentDecision\Provider\SystemOneChoiceHttpClient;
 
 final class SystemOneChoiceHttpClientTest extends TestCase
 {
+    public function testOversizedCandidateDescriptionIsRejectedBeforeNetworkUse(): void
+    {
+        $client = new SystemOneChoiceHttpClient('http://127.0.0.1:8282/v1/systemone', 1000, true);
+
+        $this->expectException(InvalidArgumentException::class);
+        $client->decide('public', ['reviewer' => str_repeat('x', 513)], null);
+    }
+
     public function testRejectsUntrustedEndpointsAndInvalidTimeouts(): void
     {
         foreach ([
