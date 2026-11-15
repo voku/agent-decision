@@ -12,12 +12,15 @@ use InvalidArgumentException;
  */
 final readonly class DecisionRequest
 {
+    /** @var non-empty-array<non-empty-string, non-empty-string> */
+    public array $criteria;
+
     /**
-     * @param non-empty-array<non-empty-string, non-empty-string> $criteria
+     * @param array<array-key, mixed> $criteria
      * @param list<non-empty-string> $choicesRequiringEvidence
      */
     public function __construct(
-        public array $criteria,
+        array $criteria,
         public string $publicState = '',
         public DataClassification $classification = DataClassification::Unclassified,
         public ?string $baselineChoice = null,
@@ -32,11 +35,15 @@ final readonly class DecisionRequest
             if (
                 !is_string($id)
                 || preg_match('/\A[a-z][a-z0-9._-]{0,79}\z/', $id) !== 1
+                || !is_string($description)
                 || trim($description) === ''
             ) {
                 throw new InvalidArgumentException('Every canonical option requires a valid identifier and description.');
             }
         }
+
+        /** @var non-empty-array<non-empty-string, non-empty-string> $criteria */
+        $this->criteria = $criteria;
 
         if (
             strlen($publicState) > 2000
