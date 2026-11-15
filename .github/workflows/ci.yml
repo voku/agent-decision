@@ -72,4 +72,11 @@ jobs:
           test "$auth_result" -eq 2
           grep -q '"preflight_status":"provider_failed"' build/probe-auth-failure.json
           ! grep -q 'probe-failure-test-token' build/probe-auth-failure.json
+          set +e
+          php tools/first-run-probe.php --fixture=experiments/public-fixtures/protected-routing.json --mode=assist --public-approved --allow-loopback > build/probe-protected.json
+          protected_result=$?
+          set -e
+          test "$protected_result" -eq 2
+          grep -q '"preflight_status":"provider_failed"' build/probe-protected.json
+          grep -q '"provider_error":"insufficient_decision_evidence"' build/probe-protected.json
           test "$(git rev-parse HEAD)" = "$EXACT_HEAD"
