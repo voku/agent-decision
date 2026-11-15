@@ -144,7 +144,11 @@ final readonly class SystemOneChoiceHttpClient implements DecisionModel
             throw new UnexpectedValueException('decision model provider response is not an object.');
         }
 
-        $answer = $responseDocument['answers']['decision'] ?? null;
+        $answers = $responseDocument['answers'] ?? null;
+        if (!is_array($answers)) {
+            throw new UnexpectedValueException('decision model provider missing answers object.');
+        }
+        $answer = $answers['decision'] ?? null;
         if (!is_array($answer) || ($answer['type'] ?? null) !== 'choice') {
             throw new UnexpectedValueException('decision model provider missing bounded choice.');
         }
@@ -157,18 +161,22 @@ final readonly class SystemOneChoiceHttpClient implements DecisionModel
         if (count($probabilities) !== count($allowed)) {
             throw new UnexpectedValueException('decision model provider returned stale candidate probabilities.');
         }
+        $selectedProbability = null;
         foreach ($allowed as $id => $description) {
             $probability = $probabilities[$id] ?? null;
-            if (
-                (!is_float($probability) && !is_int($probability))
-                || !is_finite((float) $probability)
-                || $probability < 0
-                || $probability > 1
-            ) {
+            if (!is_float($probability) && !is_int($probability)) {
+                throw new UnexpectedValueException('decision model provider returned a nonnumeric probability.');
+            }
+            if (!is_finite((float) $probability) || $probability < 0 || $probability > 1) {
                 throw new UnexpectedValueException('decision model provider returned invalid candidate probability.');
             }
+            if ($id === $choice) {
+                $selectedProbability = (float) $probability;
+            }
         }
-        $selectedProbability = (float) $probabilities[$choice];
+        if ($selectedProbability === null) {
+            throw new UnexpectedValueException('decision model provider selection missing a probability.');
+        }
         // Provider answer confidence and option probability are distinct
         // signals. Validate both independently; never equate them.
         $reported = $answer['confidence'] ?? null;
